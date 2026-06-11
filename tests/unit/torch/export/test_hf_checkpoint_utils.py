@@ -15,6 +15,7 @@
 
 """Tests for modelopt/torch/export/plugins/hf_checkpoint_utils.py"""
 
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -23,7 +24,7 @@ pytest.importorskip("huggingface_hub")
 hf_hub_errors = pytest.importorskip("huggingface_hub.errors")
 LocalEntryNotFoundError = hf_hub_errors.LocalEntryNotFoundError
 
-from modelopt.torch.export import copy_hf_ckpt_remote_code
+from modelopt.torch.export import copy_hf_ckpt_remote_code, sanitize_hf_config_for_deployment
 
 
 def test_copy_hf_ckpt_remote_code_local_dir(tmp_path):
@@ -118,3 +119,51 @@ def test_copy_hf_ckpt_remote_code_hub_id_offline_missing_cache_raises(tmp_path, 
         pytest.raises(RuntimeError, match="HF_HUB_OFFLINE"),
     ):
         copy_hf_ckpt_remote_code("nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16", tmp_path / "dst")
+
+
+def test_sanitize_hf_config_for_deployment_trims_nextn_layer_types():
+    """Drop MTP/next-token-prediction layer types from exported config.json."""
+    hidden_layer_types = ["full_attention"] * 45
+    nextn_layer_types = ["nextn_predict"] * 3
+    config_data = {
+        "num_hidden_layers": 45,
+        "num_nextn_predict_layers": 3,
+        "layer_types": hidden_layer_types + nextn_layer_types,
+    }
+
+    with pytest.warns(UserWarning, match="Trimming config.layer_types"):
+        sanitize_hf_config_for_deployment(config_data, model=SimpleNamespace())
+
+    assert config_data["layer_types"] == hidden_layer_types
+
+
+def test_sanitize_hf_config_for_deployment_uses_model_config_nextn_count():
+    """Handle exports where save_pretrained omits num_nextn_predict_layers."""
+    config_data = {
+        "num_hidden_layers": 2,
+        "layer_types": ["full_attention", "linear_attention", "nextn_predict"],
+    }
+    model = SimpleNamespace(config=SimpleNamespace(num_nextn_predict_layers=1))
+
+    with pytest.warns(UserWarning, match="Trimming config.layer_types"):
+        sanitize_hf_config_for_deployment(config_data, model=model)
+
+    assert config_data["layer_types"] == ["full_attention", "linear_attention"]
+
+
+def test_sanitize_hf_config_for_deployment_keeps_unexplained_layer_type_mismatch():
+    """Do not rewrite config when extra layer types are not explained by nextn metadata."""
+    config_data = {
+        "num_hidden_layers": 2,
+        "num_nextn_predict_layers": 1,
+        "layer_types": ["full_attention", "linear_attention", "extra_a", "extra_b"],
+    }
+
+    sanitize_hf_config_for_deployment(config_data, model=SimpleNamespace())
+
+    assert config_data["layer_types"] == [
+        "full_attention",
+        "linear_attention",
+        "extra_a",
+        "extra_b",
+    ]
