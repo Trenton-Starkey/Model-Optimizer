@@ -133,9 +133,8 @@ class VLLMModel(Model):
             max_num_seqs=max_concurrent_requests * num_speculative_tokens,
             skip_tokenizer_init=False,
             async_scheduling=kwargs.get("async_scheduling", True),
-            enforce_eager=kwargs.get("enforce_eager", False),
+            enforce_eager=False,
             max_model_len=kwargs.get("max_model_len"),
-            disable_hybrid_kv_cache_manager=kwargs.get("disable_hybrid_kv_cache_manager", False),
         )
         self.engine_args = engine_args
         self.model = AsyncLLM.from_engine_args(engine_args)
