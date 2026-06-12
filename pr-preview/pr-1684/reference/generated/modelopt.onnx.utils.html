@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>utils &mdash; Model Optimizer 0.0.1.dev1+ge00cae569</title>
+  <title>utils &mdash; Model Optimizer 0.0.1.dev1+gb71f281a1</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
@@ -432,14 +432,15 @@ these will be changed from FP32 to FP16.</p></li>
 <p>Walks every <code class="docutils literal notranslate"><span class="pre">Cast</span></code> node and forces the <code class="docutils literal notranslate"><span class="pre">elem_type</span></code> of any
 <code class="docutils literal notranslate"><span class="pre">graph.output</span></code> entry produced by that Cast to match the Cast’s <code class="docutils literal notranslate"><span class="pre">to</span></code>
 attribute (the spec-defined contract for a Cast’s output dtype). Then
-clears <code class="docutils literal notranslate"><span class="pre">value_info</span></code> wholesale so ORT/shape-inference re-derives
-intermediate-tensor types from the operator graph during session setup.</p>
+clears <code class="docutils literal notranslate"><span class="pre">value_info</span></code> so ORT/shape-inference re-derives intermediate-tensor
+types from the operator graph during session setup – except entries for
+outputs of <code class="docutils literal notranslate"><span class="pre">trt.plugins</span></code> custom-op nodes, whose types ORT cannot infer.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>model</strong> (<em>ModelProto</em>) – Loaded in-memory onnx ModelProto.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Total number of entries reconciled or cleared.</p>
+<dd class="field-even"><p>Number of Cast outputs reconciled plus value_info entries cleared.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><em>int</em></p>
